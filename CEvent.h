@@ -34,7 +34,7 @@ enum EventType
 class CEvent
 {
 public:
-    CEvent();
+    CEvent(int serverfd);
     ~CEvent();
     int Register_event(int fd,  EventType type = EDEFULT);
     int unRegister_event(int fd);
@@ -42,7 +42,11 @@ public:
     void SetNoblocking(int v_sockfd);
 
 private:
+    int accapt_event();
+
+private:
     int epfd;
+    int m_serverfd;
     bool is_running;
     pthread_t  m_tid;
     struct epoll_event events[EPOLL_SIZE];

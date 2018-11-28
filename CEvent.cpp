@@ -4,8 +4,9 @@
 
 using namespace std;
 
-CEvent::CEvent()
+CEvent::CEvent(int serverfd)
 {
+    m_serverfd = serverfd;
     is_running = false;
     epfd = epoll_create(MAX_SIZE);
     if(epfd == -1)
@@ -43,6 +44,10 @@ void CEvent::SetNoblocking(int v_sockfd)
 
 }
 
+int CEvent::accapt_event(){
+    int fd = ::accept(m_serverfd, NULL, NULL);
+    return Register_event(fd, EIN);
+}
 
 int CEvent::Register_event(int fd, EventType type)
 {
@@ -73,6 +78,7 @@ int CEvent::unRegister_event(int fd)
 void* CEvent::EventHandle(void* arg)
 {
     CEvent &event = *(CEvent*)arg;
+    event.Register_event(event.m_serverfd);
     event.is_running = true;
     while(event.is_running)
     {
@@ -84,9 +90,10 @@ void* CEvent::EventHandle(void* arg)
         }
         for(int i=0; i<ret; i++)
         {
-
-
-            if(event.events[i].events & EPOLLIN)
+            if(event.events[i].data.fd == event.m_serverfd){
+                event.accapt_event();
+            }
+            else if(event.events[i].events & EPOLLIN)
             {
                 int connfd = event.events[i].data.fd;
                 cout<<"EPOLLIN..."<<endl;

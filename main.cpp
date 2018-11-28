@@ -53,8 +53,8 @@ int main(int argc, char *argv[])
 
     cout << "Hello World!" << endl;
 
-    CEvent event;
-    event.Register_event(sock, EIN);
+    CEvent event(sock);
+    event.Register_event(sock);
     while(1){
         sleep(1000);
     }
