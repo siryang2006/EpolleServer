@@ -35,58 +35,63 @@ class EpollEventBase//基类
 {
 public:
     EpollEventBase();
-    ~EpollEventBase();
+    virtual ~EpollEventBase();
     
-int init();
-	void stop();
+    virtual int init();
+    virtual void stop();
 
-protected:
     int register_event(int fd,  EpollEventType type = EDEFULT);
     int unregister_event(int fd);
-	void setnoblocking(int v_sockfd);
-	virtual void event_loop() = 0;
+
+protected:
+    void setnoblocking(int v_sockfd);
+    virtual void event_loop() = 0;
 
 private:
-	static void* eventHandle(EpollEventBase *arg);
+    static void* eventHandle(void *arg);
 
-private:
-    int epfd;
+protected:
+    int m_epfd;
     bool m_is_running;
-    pthread_t  m_tid;
     struct epoll_event m_events[EPOLL_SIZE];
-};
 
-class EpollEventAgent;
-class EpollEventListener : public EpollEventBase//监听端
-{
-	public:
-		EpollEventListener();
-		~EpollEventListener();
+    pthread_t  m_tid;
 
-		int start(const char *szIP, int port);
-
-		int init();
-
-		virtual void event_loop();
-
-	private:
-		int accapt_event();
-
-	private:
-		int m_listen_sock;
-	    int m_port;
-		EpollEventAgent m_epoll_event_agent_array[2];
 };
 
 class EpollEventAgent : public EpollEventBase//监听端数据接收处理
 {
-	public:
-		EpollEventAgent();
-		~EpollEventAgent();
-		
-	private:
-		virtual void event_loop();
-		void read_data();
+public:
+    EpollEventAgent();
+    ~EpollEventAgent();
+
+private:
+    virtual void event_loop();
+    void read_data();
+};
+
+class EpollEventListener : public EpollEventBase//监听端
+{
+public:
+    EpollEventListener();
+    ~EpollEventListener();
+
+    int start(int port);
+
+    int init();
+
+    virtual void event_loop();
+
+    virtual void stop();
+
+private:
+    int accapt_event();
+    int set_socket_keepalive(int listenfd);
+
+private:
+    int m_listen_sock;
+    int m_port;
+    EpollEventAgent m_epoll_event_agent_array[2];
 };
 
 #endif

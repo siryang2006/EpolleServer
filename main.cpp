@@ -14,7 +14,7 @@ using namespace std;
 int main(int argc, char *argv[])
 {
 	EpollEventListener epollEventListener;
-	epollEventListener.run("", 100);
+    epollEventListener.start(1111);
     while(1){
         sleep(1000);
     }
