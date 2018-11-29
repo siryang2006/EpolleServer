@@ -75,7 +75,7 @@ class EpollEventListener : public EpollEventBase//监听端
 	private:
 		int m_listen_sock;
 	    int m_port;
-		EpollEventAgent m_epoll_event_agent_array[2];
+		EpollEventAgent epoll_event_agent_array[2];
 };
 
 class EpollEventAgent : public EpollEventBase//监听端数据接收处理
