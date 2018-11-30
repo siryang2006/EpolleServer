@@ -67,7 +67,6 @@ public:
 
 private:
     virtual void event_loop();
-    void read_data();
 };
 
 class EpollEventListener : public EpollEventBase//监听端

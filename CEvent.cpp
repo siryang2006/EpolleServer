@@ -199,6 +199,9 @@ int EpollEventListener::init()
 
 void EpollEventListener::stop()
 {
+	m_epoll_event_agent_array[0].stop();
+    m_epoll_event_agent_array[1].stop();
+
     EpollEventBase::stop();
     close(m_listen_sock);
     m_listen_sock = 0;
@@ -230,8 +233,6 @@ void EpollEventListener::event_loop()
 
 EpollEventListener::~EpollEventListener()
 {
-    m_epoll_event_agent_array[0].stop();
-    m_epoll_event_agent_array[1].stop();
     stop();
 }
 
@@ -310,11 +311,6 @@ int EpollEventListener::set_socket_keepalive(int listenfd)
 //======================
 
 EpollEventAgent::EpollEventAgent()
-{
-
-}
-
-void EpollEventAgent::read_data()
 {
 
 }
