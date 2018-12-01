@@ -14,10 +14,14 @@
 #include <fcntl.h>
 #include <sys/wait.h>
 #include <sys/epoll.h>
+#include <map>
+#include <iostream>
+
+using namespace std;
 
 #define MAX_SIZE 1024
 #define EPOLL_SIZE 1024
-#define BUFFER_SIZE 1024
+#define MAX_BUFFER_SIZE 1024
 
 enum EpollEventType
 {
@@ -30,6 +34,18 @@ enum EpollEventType
     EDEFULT = EIN | ECLOSE | EERR | EET
 };
 
+class log{
+public:
+    log(const char *strLog){
+        memset(m_log, sizeof(m_log), 0);
+        strcpy(m_log, strLog);
+    }
+    ~log(){
+        cout<<m_log<<endl;
+    }
+   private:
+    char m_log[100];
+};
 
 class EpollEventBase//基类
 {
@@ -40,8 +56,8 @@ public:
     virtual int init();
     virtual void stop();
 
-    int register_event(int fd,  EpollEventType type = EDEFULT);
-    int unregister_event(int fd);
+    virtual int register_event(int fd,  EpollEventType type);
+    virtual int unregister_event(int fd);
 
 protected:
     void setnoblocking(int v_sockfd);
@@ -59,14 +75,36 @@ protected:
 
 };
 
+class EpollEventBuffer{
+public:
+    EpollEventBuffer();
+    ~EpollEventBuffer();
+    int push(void *data, int len);
+    void pop(char **pData, int *pLen);
+    void setfd(int fd);
+    int getfd();
+private:
+    char* m_end;
+    char* m_buffer;
+    int m_fd;
+};
+
 class EpollEventAgent : public EpollEventBase//监听端数据接收处理
 {
 public:
     EpollEventAgent();
     ~EpollEventAgent();
 
+    virtual int register_event(int fd,  EpollEventType type);
+    virtual int unregister_event(int fd);
+    virtual void stop();
+
+private:
+    void disconnect_all();
+
 private:
     virtual void event_loop();
+    std::map<int, EpollEventBuffer*> m_agentMap;
 };
 
 class EpollEventListener : public EpollEventBase//监听端
