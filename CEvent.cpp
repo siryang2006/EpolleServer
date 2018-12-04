@@ -98,69 +98,6 @@ int EpollEventBase::unregister_event(int fd)
 }
 
 
-/*void EpollEventBase::EventLoop()
-{
-    event.is_running = true;
-    while(event.is_running)
-    {
-        cout<<"run..."<<endl;
-        int ret = epoll_wait(event.epfd, event.events, MAX_SIZE, -1);
-        if(ret < 0)
-        {
-            printf("epoll_wait failed, epfd[%d]",&event.epfd);
-        }
-        for(int i=0; i<ret; i++)
-        {
-            if(event.events[i].data.fd == event.m_serverfd){
-                event.accapt_event();
-            }
-            else if(event.events[i].events & EPOLLIN)
-            {
-                int connfd = event.events[i].data.fd;
-                cout<<"EPOLLIN..."<<endl;
-                int nread = 0;
-                char recv_buffer[BUFFER_SIZE];
-                do
-                {
-                    nread = ::read(connfd, recv_buffer, sizeof(recv_buffer) - 1);
-                    if (nread > 0)
-                    {
-                        recv_buffer[nread] = '\0';
-                        cout << recv_buffer << endl;
-                        if (nread < int(sizeof(recv_buffer) - 1))
-                        {
-                            break;//! equal EWOULDBLOCK
-                        }
-                    }
-                    else if (0 == nread) //! eof
-                    {
-                      //  this->close();//=================
-                        printf("end");
-                        return NULL;
-                    }
-                    else
-                    {
-                        if (errno == EINTR)
-                        {
-                            continue;
-                        }
-                        else if (errno == EWOULDBLOCK)
-                        {
-                            break;
-                        }
-                        else
-                        {
-                            //this->close();//=================
-                            printf("end111");
-                            return NULL;
-                        }
-                    }
-                } while(1);
-            }
-        }
-    }
-    return NULL;
-}*/
 
 void* EpollEventBase::eventHandle(void* arg)
 {
@@ -436,7 +373,11 @@ void EpollEventAgent::event_loop()
         }\
         for(int i=0; i<ret; i++)
         {
-            if(m_events[i].events & EPOLLIN)
+            if(m_events[i].events &EERR)
+            {
+cout <<"===================="<<endl;
+            }
+            else if(m_events[i].events & EPOLLIN)
             {
 
                 EpollEventBuffer *pEpollEventBuffer = (EpollEventBuffer*)m_events[i].data.ptr;
@@ -447,18 +388,18 @@ void EpollEventAgent::event_loop()
                 do
                 {
                     int nread = 0;
-                    char recv_buffer[MAX_BUFFER_SIZE];
+                    char recv_buffer[MAX_BUFFER_SIZE]={0};
                     cout<<"before read"<<endl;
-                    nread = read(connfd, recv_buffer, sizeof(recv_buffer) - 1);
+                    nread = ::read(connfd, recv_buffer, sizeof(recv_buffer));
                     cout <<nread<<":"<<errno<<endl;
                     if (nread > 0)
                     {
                         //recv_buffer[nread] = '\0';
                         cout << recv_buffer << endl;
-                        pEpollEventBuffer->push(recv_buffer, nread);
-                        if (nread < int(sizeof(recv_buffer)))
+                       // pEpollEventBuffer->push(recv_buffer, nread);
+                        if (nread <= int(sizeof(recv_buffer)))
                         {
-                            char *data = NULL;
+                            /*char *data = NULL;
                             int len = 0;
                             pEpollEventBuffer->pop(&data, &len);
                             if (len != strlen(data)) {
@@ -469,7 +410,7 @@ void EpollEventAgent::event_loop()
                             }
                             ///////test
                             free(data);
-                            data = NULL;
+                            data = NULL;*/
                             ///////
 
                             break;//! equal EWOULDBLOCK
