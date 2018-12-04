@@ -335,9 +335,7 @@ void EpollEventBuffer::pop(char **pData, int *pLen)
     memcpy(*pData, m_buffer, len);
     *pLen = len;
     free(m_buffer);
-    m_buffer = NULL;
-    m_end = NULL;
-    m_fd = 0;
+    m_end = m_buffer = NULL;
 }
 
 void EpollEventBuffer::setfd(int fd)
@@ -396,10 +394,10 @@ cout <<"===================="<<endl;
                     {
                         //recv_buffer[nread] = '\0';
                         cout << recv_buffer << endl;
-                       // pEpollEventBuffer->push(recv_buffer, nread);
+                        pEpollEventBuffer->push(recv_buffer, nread);
                         if (nread <= int(sizeof(recv_buffer)))
                         {
-                            /*char *data = NULL;
+                            char *data = NULL;
                             int len = 0;
                             pEpollEventBuffer->pop(&data, &len);
                             if (len != strlen(data)) {
@@ -410,7 +408,7 @@ cout <<"===================="<<endl;
                             }
                             ///////test
                             free(data);
-                            data = NULL;*/
+                            data = NULL;
                             ///////
 
                             break;//! equal EWOULDBLOCK
