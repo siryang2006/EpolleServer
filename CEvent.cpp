@@ -279,7 +279,7 @@ EpollEventBuffer::EpollEventBuffer()
     _LOG_FUNCION_();
 
     m_buffer = NULL;
-    m_end = m_buffer;
+    m_length = 0;
     m_fd = 0;
 }
 
@@ -290,7 +290,7 @@ EpollEventBuffer::~EpollEventBuffer()
 
     free(m_buffer);
     m_buffer = NULL;
-    m_end = NULL;
+    m_length = 0;
     m_fd = 0;
 }
 
@@ -298,16 +298,14 @@ int EpollEventBuffer::push(void *data, int len)
 {
     _LOG_FUNCION_();
 
-    int length = (m_end-m_buffer)+len;
-    assert(length>0);
+	
     if(m_buffer == NULL)
     {
         m_buffer = (char*)malloc(len);
-        m_end = m_buffer;
     }
     else
     {
-        m_buffer = (char*)realloc(m_buffer, (int)(m_end-m_buffer)+len);
+        m_buffer = (char*)realloc(m_buffer, m_length+len);
     }
 
     if (m_buffer == NULL){
@@ -316,26 +314,25 @@ int EpollEventBuffer::push(void *data, int len)
         return -1;
     }
 
-    memcpy(m_end, data, len);
-    m_end+=len;
-    return (int)(m_end-m_buffer);
+    memcpy(m_buffer+m_length, data, len);
+    return m_length;
 }
 
 void EpollEventBuffer::pop(char **pData, int *pLen)
 {
     _LOG_FUNCION_();
 
-    int len = m_end-m_buffer;
-    if(len<=0){
+    if(m_length<=0){
         assert(false);
         *pLen = 0;
         return;
     }
-    *pData = (char*)malloc(len);
-    memcpy(*pData, m_buffer, len);
-    *pLen = len;
+    *pData = (char*)malloc(m_length);
+    memcpy(*pData, m_buffer, m_length);
+    *pLen = m_length;
     free(m_buffer);
-    m_end = m_buffer = NULL;
+    m_length = 0;
+	m_buffer = NULL;
 }
 
 void EpollEventBuffer::setfd(int fd)

@@ -84,7 +84,7 @@ public:
     void setfd(int fd);
     int getfd();
 private:
-    char* m_end;
+    int m_length;
     char* m_buffer;
     int m_fd;
 };
