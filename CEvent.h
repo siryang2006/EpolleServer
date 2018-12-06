@@ -79,8 +79,9 @@ class EpollEventBuffer{
 public:
     EpollEventBuffer();
     ~EpollEventBuffer();
-    int push(void *data, int len);
+    int push(char *data, int len);
     void pop(char **pData, int *pLen);
+    void rest();
     void setfd(int fd);
     int getfd();
 private:
