@@ -136,7 +136,7 @@ int EpollEventListener::init()
     server_addr.sin_addr.s_addr  =  htonl(INADDR_ANY);
 
     int so_reuseaddr = 1;
-     int z = setsockopt(m_listen_sock, SOL_SOCKET, SO_REUSEADDR,   &so_reuseaddr,  sizeof(so_reuseaddr));
+    int z = setsockopt(m_listen_sock, SOL_SOCKET, SO_REUSEADDR,   &so_reuseaddr,  sizeof(so_reuseaddr));
 
 
     //bind
@@ -276,99 +276,12 @@ int EpollEventListener::set_socket_keepalive(int listenfd)
     return 0;
 }
 
-//===============
-
-EpollEventBuffer::EpollEventBuffer()
-{
-    _LOG_FUNCION_();
-
-    m_buffer = NULL;
-    m_length = 0;
-    m_fd = 0;
-}
-
-
-EpollEventBuffer::~EpollEventBuffer()
-{
-    _LOG_FUNCION_();
-
-    free(m_buffer);
-    m_buffer = NULL;
-    m_length = 0;
-    m_fd = 0;
-}
-
-int EpollEventBuffer::push(char *data, int len)
-{
-    _LOG_FUNCION_();
-
-	
-    if(m_buffer == NULL)
-    {
-        cout<<"relooc"<<len<<endl;
-        m_buffer = (char*)calloc(len, 1);
-    }
-    else
-    {
-        m_buffer = (char*)realloc(m_buffer, m_length+len);
-    }
-
-    if (m_buffer == NULL){
-        cout<<"lenfth error:"<<m_length+len<<endl;
-        assert(false);
-        return -1;
-    }
-
-    memcpy(m_buffer+m_length, data, len);
-    m_length += len;
-    cout<<"m_length="<<m_length<<endl;
-    return m_length;
-}
-
-void EpollEventBuffer::pop(char **pData, int *pLen)
-{
-    _LOG_FUNCION_();
-
-    if(m_length<=0){
-        assert(false);
-        *pLen = 0;
-        return;
-    }
-    *pData = (char*)calloc(m_length+1, 1);
-    memcpy(*pData, m_buffer, m_length);
-    pData[m_length] = '\0';
-    *pLen = m_length;
-    free(m_buffer);
-    m_length = 0;
-	m_buffer = NULL;
-}
-
-void EpollEventBuffer::rest()
-{
-    if(m_buffer != NULL) {
-        free(m_buffer);
-    }
-    m_length = 0;
-    m_buffer = NULL;
-}
-
-void EpollEventBuffer::setfd(int fd)
-{
-    _LOG_FUNCION_();
-    m_fd = fd;
-}
-
-int EpollEventBuffer::getfd()
-{
-    _LOG_FUNCION_();
-    return m_fd;
-}
 
 //======================
 
 EpollEventAgent::EpollEventAgent()
 {
-_LOG_FUNCION_();
+    _LOG_FUNCION_();
 }
 
 void EpollEventAgent::event_loop()
@@ -385,11 +298,11 @@ void EpollEventAgent::event_loop()
         }
         for(int i=0; i<ret; i++)
         {
-            EpollEventBuffer *pEpollEventBuffer = (EpollEventBuffer*)m_events[i].data.ptr;
-            assert(pEpollEventBuffer!=NULL);
+            EventData *pEventData = (EventData*)m_events[i].data.ptr;
+            assert(pEventData!=NULL);
             cout<<"EPOLLIN..."<<endl;
 
-            int connfd = pEpollEventBuffer->getfd();
+            int connfd = pEventData->fd;
 
             if(m_events[i].events &EERR)
             {
@@ -399,38 +312,22 @@ void EpollEventAgent::event_loop()
             }
             else if(m_events[i].events & EPOLLIN)
             {
-
-
                 do
                 {
-                    int nread = 0;
-                    char recv_buffer[MAX_BUFFER_SIZE]={0};
                     cout<<"before read"<<endl;
-                    nread = ::read(connfd, recv_buffer, sizeof(recv_buffer));
+                    bool finished = false;
+                    int nread = pEventData->read_buffer(finished);
                     cout <<nread<<":"<<errno<<endl;
                     if (nread > 0)
                     {
-                        //recv_buffer[nread] = '\0';
-                        cout << recv_buffer << endl;
-
-                        if (nread <= int(sizeof(recv_buffer)))
+                        if(finished)
                         {
-                            pEpollEventBuffer->push(recv_buffer, nread);
-                            char *data = NULL;
-                            int len = 0;
-                            pEpollEventBuffer->pop(&data, &len);
-                            if (len != strlen(data)) {
-                                cout<<"error length:"<<len<<","<<strlen(data)<<",data"<<data<<endl;
-                                assert(false);
-                            } else{
-                                cout<<"got data:"<<data<<endl;
-                            }
-                            ///////test
-                            free(data);
-                            data = NULL;
-                            ///////
-
-                            break;//! equal EWOULDBLOCK
+                            pEventData->reset();
+                            continue;
+                        }
+                        else
+                        {
+                            break;
                         }
                     }
                     else if (0 == nread) //! eof 主动断开
@@ -476,23 +373,23 @@ int EpollEventAgent::register_event(int fd,  EpollEventType type)
     struct epoll_event ev;
     //ev.data.fd = fd;
     ev.events = type;
-    EpollEventBuffer *pEpollEventBuffer = new EpollEventBuffer();
-    pEpollEventBuffer->setfd(fd);
-    ev.data.ptr = (void*)pEpollEventBuffer;
+    EventData *pEventData = new EventData();
+    pEventData->fd = fd;
+    ev.data.ptr = (void*)pEventData;
     if(epoll_ctl(m_epfd, EPOLL_CTL_ADD, fd, &ev) == -1)
     {
-        delete pEpollEventBuffer;
-        pEpollEventBuffer = NULL;
+        delete pEventData;
+        pEventData = NULL;
         printf("epoll_ctl: EPOLL_CTL_ADD failed, fd[%d].", &fd);
         return -1;
     }
 
-    if(pEpollEventBuffer == NULL) {
+    if(pEventData == NULL) {
         cout<<"pEpollEventBuffer == NULL"<<endl;
         assert(false);
     }
 
-    m_agentMap.insert(make_pair(fd, pEpollEventBuffer));
+    m_agentMap.insert(make_pair(fd, pEventData));
 
     return 0;
 }
@@ -500,12 +397,12 @@ int EpollEventAgent::register_event(int fd,  EpollEventType type)
 int EpollEventAgent::unregister_event(int fd)
 {
     _LOG_FUNCION_();
-    std::map<int, EpollEventBuffer*>::iterator it = m_agentMap.find(fd);
+    std::map<int, EventData*>::iterator it = m_agentMap.find(fd);
     if (it != m_agentMap.end()) {
-        EpollEventBuffer *pEpollEventBuffer = it->second;
-        if (pEpollEventBuffer != NULL) {
-            delete pEpollEventBuffer;
-            pEpollEventBuffer = NULL;
+        EventData *pEventData = it->second;
+        if (pEventData != NULL) {
+            delete pEventData;
+            pEventData = NULL;
         }
         m_agentMap.erase(it);
     }
@@ -522,12 +419,12 @@ void EpollEventAgent::stop()
 void EpollEventAgent::disconnect_all()
 {
     _LOG_FUNCION_();
-    std::map<int, EpollEventBuffer*>::iterator it = m_agentMap.begin();
+    std::map<int, EventData*>::iterator it = m_agentMap.begin();
     while (it != m_agentMap.end()) {
-        EpollEventBuffer *pEpollEventBuffer = it->second;
-        if (pEpollEventBuffer != NULL) {
-            delete pEpollEventBuffer;
-            pEpollEventBuffer = NULL;
+        EventData *pEventData = it->second;
+        if (pEventData != NULL) {
+            delete pEventData;
+            pEventData = NULL;
         }
         EpollEventBase::unregister_event(it->first);
         close(it->first);

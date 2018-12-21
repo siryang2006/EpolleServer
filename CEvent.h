@@ -43,7 +43,7 @@ public:
     ~log(){
         cout<<m_log<<endl;
     }
-   private:
+private:
     char m_log[100];
 };
 
@@ -75,20 +75,100 @@ protected:
 
 };
 
-class EpollEventBuffer{
+
+class EventBuffer{
 public:
-    EpollEventBuffer();
-    ~EpollEventBuffer();
-    int push(char *data, int len);
-    void pop(char **pData, int *pLen);
-    void rest();
-    void setfd(int fd);
-    int getfd();
-private:
-    int m_length;
-    char* m_buffer;
-    int m_fd;
+    EventBuffer() {
+        reset();
+    }
+
+    void reset(){
+        pack_length = real_length = 0;
+        buffer = (char*)malloc(head_length+1);
+        buffer[head_length] = '\0';
+    }
+
+    ~EventBuffer() {
+        pack_length = real_length = 0;
+        if(buffer){
+            free(buffer);
+            buffer = NULL;
+        }
+    }
+
+    int read_buffer(int fd, bool &finished){
+        int read_length = 0;
+        finished = false;
+        if(pack_length == 0){
+            read_length = read(fd, buffer+real_length, head_length-real_length);
+            if(read_length<=0){
+                return read_length;
+            }
+
+            real_length += read_length;
+            if(real_length<head_length){
+                return read_length;
+            }
+
+            pack_length = atoi(buffer)+head_length;
+            buffer = (char*)realloc(buffer, pack_length+1);
+            memset(buffer + head_length, pack_length-head_length, 0);
+            buffer[pack_length+head_length] = '\0';
+        }
+
+        read_length = read(fd, buffer+real_length, pack_length-real_length);
+        if(read_length<=0){
+            return read_length;
+        }
+
+        real_length += read_length;
+        if(real_length == pack_length){
+            finished = true;
+            static int index = 1;
+            cout<<"got data "<<index<<":"<<buffer<<endl;
+            index++;
+        }
+
+        return read_length;
+    }
+
+    int pack_length;
+    int real_length;
+    char* buffer;
+
+    const int head_length = 4;
 };
+
+class EventData{
+ public:
+    EventData(){
+        pEventBuffer = NULL;
+    }
+
+    ~EventData() {
+        if (pEventBuffer != NULL) {
+            delete pEventBuffer;
+            pEventBuffer = NULL;
+        }
+    }
+
+    int read_buffer(bool &finished){
+        if(pEventBuffer == NULL){
+            pEventBuffer = new EventBuffer();
+        }
+        return pEventBuffer->read_buffer(fd, finished);
+    }
+
+    void reset(){
+        if(pEventBuffer != NULL){
+            pEventBuffer->reset();
+        }
+    }
+
+    int fd;
+    EventBuffer *pEventBuffer;
+};
+
 
 class EpollEventAgent : public EpollEventBase//监听端数据接收处理
 {
@@ -105,7 +185,7 @@ private:
 
 private:
     virtual void event_loop();
-    std::map<int, EpollEventBuffer*> m_agentMap;
+    std::map<int, EventData*> m_agentMap;
 };
 
 class EpollEventListener : public EpollEventBase//监听端
